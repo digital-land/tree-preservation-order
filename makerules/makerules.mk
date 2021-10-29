@@ -1,5 +1,14 @@
 SOURCE_URL=https://raw.githubusercontent.com/digital-land/
 
+# deduce the repository
+ifeq ($(REPOSITORY),)
+REPOSITORY=$(shell basename -s .git `git config --get remote.origin.url`)
+endif
+
+define dataset_url
+'https://collection-dataset.s3.eu-west-2.amazonaws.com/$(2)-collection/dataset/$(1).sqlite3'
+endef
+
 .PHONY: \
 	makerules\
 	specification\
@@ -27,6 +36,18 @@ LC_COLLATE := C.UTF-8
 # current git branch
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
+UNAME := $(shell uname)
+
+# detect location of spatialite library
+ifndef SPATIALITE_EXTENSION
+ifeq ($(UNAME), Linux)
+SPATIALITE_EXTENSION="/usr/lib/x86_64-linux-gnu/mod_spatialite.so"
+endif
+ifeq ($(UNAME), Darwin)
+SPATIALITE_EXTENSION="/usr/local/lib/mod_spatialite.dylib"
+endif
+endif
+
 all:: first-pass second-pass
 
 first-pass::
@@ -38,11 +59,12 @@ second-pass::
 
 # initialise
 init::
+	pip install --upgrade pip
 ifneq (,$(wildcard requirements.txt))
 	pip3 install --upgrade -r requirements.txt
 endif
 ifneq (,$(wildcard setup.py))
-	pip install -e .
+	pip install -e .$(PIP_INSTALL_PACKAGE)
 endif
 
 submodules::
@@ -62,20 +84,22 @@ prune::
 
 # update makerules from source
 makerules::
-	curl -qsL '$(SOURCE_URL)/makerules/main/makerules.mk' > makerules/makerules.mk
+	curl -qfsL '$(SOURCE_URL)/makerules/main/makerules.mk' > makerules/makerules.mk
 
 ifeq (,$(wildcard ./makerules/specification.mk))
 # update local copies of specification files
 specification::
 	@mkdir -p specification/
-	curl -qsL '$(SOURCE_URL)/specification/main/specification/dataset.csv' > specification/dataset.csv
-	curl -qsL '$(SOURCE_URL)/specification/main/specification/dataset-schema.csv' > specification/dataset-schema.csv
-	curl -qsL '$(SOURCE_URL)/specification/main/specification/schema.csv' > specification/schema.csv
-	curl -qsL '$(SOURCE_URL)/specification/main/specification/schema-field.csv' > specification/schema-field.csv
-	curl -qsL '$(SOURCE_URL)/specification/main/specification/field.csv' > specification/field.csv
-	curl -qsL '$(SOURCE_URL)/specification/main/specification/datatype.csv' > specification/datatype.csv
-	curl -qsL '$(SOURCE_URL)/specification/main/specification/typology.csv' > specification/typology.csv
-	curl -qsL '$(SOURCE_URL)/specification/main/specification/pipeline.csv' > specification/pipeline.csv
+	curl -qfsL '$(SOURCE_URL)/specification/main/specification/collection.csv' > specification/collection.csv
+	curl -qfsL '$(SOURCE_URL)/specification/main/specification/dataset.csv' > specification/dataset.csv
+	curl -qfsL '$(SOURCE_URL)/specification/main/specification/dataset-schema.csv' > specification/dataset-schema.csv
+	curl -qfsL '$(SOURCE_URL)/specification/main/specification/schema.csv' > specification/schema.csv
+	curl -qfsL '$(SOURCE_URL)/specification/main/specification/schema-field.csv' > specification/schema-field.csv
+	curl -qfsL '$(SOURCE_URL)/specification/main/specification/field.csv' > specification/field.csv
+	curl -qfsL '$(SOURCE_URL)/specification/main/specification/datatype.csv' > specification/datatype.csv
+	curl -qfsL '$(SOURCE_URL)/specification/main/specification/typology.csv' > specification/typology.csv
+	curl -qfsL '$(SOURCE_URL)/specification/main/specification/pipeline.csv' > specification/pipeline.csv
+	curl -qfsL '$(SOURCE_URL)/specification/main/specification/theme.csv' > specification/theme.csv
 
 init::	specification
 endif
